@@ -9,7 +9,14 @@ spec:
       containers:
         - name: kong-migration
           image: kong:3.4
-          command: [ "kong", "migrations", "bootstrap" ]
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Environment Variables ==="
+              env | sort
+              echo "=== Running Migration ==="
+              kong migrations bootstrap
           resources:
             requests:
               memory: "256Mi"
@@ -45,6 +52,8 @@ spec:
                 configMapKeyRef:
                   name: env-config
                   key: POSTGRESQL_DB_NAME
+            - name: KONG_PG_SCHEMA
+              value: "kong_gateway"
             - name: KONG_PG_SSL
               value: "on"
             - name: KONG_PG_SSL_VERIFY
