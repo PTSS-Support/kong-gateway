@@ -29,6 +29,18 @@ spec:
               name: proxy
             - containerPort: 8001
               name: admin
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: 8001
+            initialDelaySeconds: 15
+            periodSeconds: 20
           volumeMounts:
             - name: kong-plugins
               mountPath: /usr/local/share/lua/5.1/kong/plugins/custom-auth
@@ -75,6 +87,13 @@ spec:
               value: "0.0.0.0:8000"
             - name: KONG_PLUGINS
               value: "bundled,custom-auth"
+            - name: KONG_NGINX_WORKER_PROCESSES
+              value: "2"
+            - name: KONG_CUSTOM_PLUGINS_CONF
+              value: |
+                custom-auth:
+                  config:
+                    auth_url: $(AUTH_URL)
       volumes:
         - name: kong-plugins
           configMap:
