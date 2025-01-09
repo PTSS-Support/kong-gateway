@@ -10,9 +10,21 @@ spec:
         - name: kong-migration
           image: kong:3.4
           command: [ "kong", "migrations", "bootstrap" ]
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          envFrom:
+            - configMapRef:
+                name: kong-gateway-config
+            - configMapRef:
+                name: env-config
+            - configMapRef:
+                name: app-config
           env:
-            - name: KONG_DATABASE
-              value: "postgres"
             - name: KONG_PG_HOST
               valueFrom:
                 configMapKeyRef:
