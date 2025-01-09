@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
         - name: kong
-          image: kong:3.4
+          image: registry.connect.redhat.com/kong/kong:3.1.1
+          imagePullPolicy: Always
           resources:
             requests:
               memory: "256Mi"
@@ -25,18 +26,15 @@ spec:
               cpu: "500m"
           ports:
             - containerPort: 8000
+              name: proxy
             - containerPort: 8001
+              name: admin
           volumeMounts:
             - name: kong-plugins
               mountPath: /usr/local/share/lua/5.1/kong/plugins/custom-auth
-          envFrom:
-            - configMapRef:
-                name: kong-gateway-config
-            - configMapRef:
-                name: env-config
-            - configMapRef:
-                name: app-config
           env:
+            - name: KONG_DATABASE
+              value: "postgres"
             - name: KONG_PG_HOST
               valueFrom:
                 configMapKeyRef:
@@ -57,6 +55,26 @@ spec:
                 configMapKeyRef:
                   name: env-config
                   key: POSTGRESQL_DB_NAME
+            - name: KONG_PG_SCHEMA
+              value: "kong_gateway"
+            - name: KONG_PG_SSL
+              value: "on"
+            - name: KONG_PG_SSL_VERIFY
+              value: "on"
+            - name: KONG_PROXY_ACCESS_LOG
+              value: "/dev/stdout"
+            - name: KONG_ADMIN_ACCESS_LOG
+              value: "/dev/stdout"
+            - name: KONG_PROXY_ERROR_LOG
+              value: "/dev/stderr"
+            - name: KONG_ADMIN_ERROR_LOG
+              value: "/dev/stderr"
+            - name: KONG_ADMIN_LISTEN
+              value: "0.0.0.0:8001"
+            - name: KONG_PROXY_LISTEN
+              value: "0.0.0.0:8000"
+            - name: KONG_PLUGINS
+              value: "bundled,custom-auth"
       volumes:
         - name: kong-plugins
           configMap:
