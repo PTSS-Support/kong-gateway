@@ -16,7 +16,9 @@ end
 
 local function get_cookie_header()
   local headers = ngx.req.get_headers()
-  return headers["cookie"] or headers["Cookie"]
+  local cookie = headers["cookie"] or headers["Cookie"]
+  ngx.log(ngx.WARN, "Full Cookie Header: " .. tostring(cookie))
+  return cookie
 end
 
 local function validate_config(conf)
@@ -65,6 +67,7 @@ end
 
 -- Token Management
 local function extract_tokens(cookie_header)
+  ngx.log(ngx.WARN, "Cookie Header: " .. tostring(cookie_header))
   return {
     access_token = ngx.var.cookie_access_token or
             extract_cookie_value(cookie_header, "access_token"),
@@ -80,7 +83,11 @@ local function handle_new_tokens(res)
 
   -- If set_cookie is a table, take the first cookie
   if type(set_cookie) == "table" then
-    set_cookie = set_cookie[1]
+    ngx.log(ngx.WARN, "Multiple Set-Cookie headers found:")
+    for i, cookie in ipairs(set_cookie) do
+      ngx.log(ngx.WARN, "Cookie " .. i .. ": " .. tostring(cookie))
+    end
+    set_cookie = table.concat(set_cookie, "; ")
   end
 
   local new_access_token = set_cookie and
@@ -97,7 +104,7 @@ local function handle_new_tokens(res)
     ngx.log(ngx.WARN, "No new refresh token received from auth service")
   end
 
-  return new_access_token
+  return new_access_token, new_refresh_token
 end
 
 -- Flow Handlers
@@ -126,7 +133,7 @@ local function handle_pin_validation(conf, tokens)
     return nil, res.status, cjson.decode(res.body)
   end
 
-  local new_access_token, err = handle_new_tokens(res)
+  local new_access_token, new_refresh_token = handle_new_tokens(res)
   if not new_access_token then
     return nil, 500, err
   end
@@ -136,11 +143,16 @@ local function handle_pin_validation(conf, tokens)
   -- Handle multiple Set-Cookie headers
   local set_cookie = res.headers["Set-Cookie"]
   if type(set_cookie) == "table" then
-    set_cookie = table.concat(set_cookie, "; ")
+    -- Set each cookie as a separate header
+    for _, cookie in ipairs(set_cookie) do
+      kong.response.add_header("Set-Cookie", cookie)
+    end
+  else
+    -- Single cookie case
+    kong.response.set_header("Set-Cookie", set_cookie)
   end
-
-  kong.response.set_header("Set-Cookie", set_cookie)
-  kong.service.request.set_header("Cookie", "access_token=" .. new_access_token)
+  kong.service.request.set_header("Cookie", "access_token=" .. new_access_token ..
+          "; refresh_token=" .. (new_refresh_token or ""))
   return true
 end
 
