@@ -8,7 +8,7 @@ return {
     { config = {
         type = "record",
         fields = {
-          { auth_url = { type = "string", default = "http://localhost:8081/auth/verify" } },
+          { auth_url = { type = "string", default = "http://host.docker.internal:8081" } },
         },
       },
     },

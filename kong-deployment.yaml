@@ -3,6 +3,9 @@ kind: Deployment
 metadata:
   name: kong-gateway
   namespace: hotel-dev
+  labels:
+    app: kong-gateway
+    ingress-class: kong
 spec:
   replicas: 1
   selector:
@@ -12,6 +15,7 @@ spec:
     metadata:
       labels:
         app: kong-gateway
+        ingress-class: kong
     spec:
       containers:
         - name: kong
@@ -89,11 +93,8 @@ spec:
               value: "bundled,custom-auth"
             - name: KONG_NGINX_WORKER_PROCESSES
               value: "2"
-            - name: KONG_CUSTOM_PLUGINS_CONF
-              value: |
-                custom-auth:
-                  config:
-                    auth_url: $(AUTH_URL)
+            - name: KONG_NGINX_HTTP_LUA_SHARED_DICT
+              value: "tokens 10m"
       volumes:
         - name: kong-plugins
           configMap:
