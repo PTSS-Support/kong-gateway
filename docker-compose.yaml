@@ -55,6 +55,7 @@ services:
       KONG_PLUGINS: custom-auth
       KONG_NGINX_HTTP_LUA_SHARED_DICT: "tokens 10m"
       KONG_NGINX_LOG_LEVEL: debug
+      EXCLUDED_PATHS: '["/authentication-service/auth/login","/user-service/forgot-password","/user-service/reset-password"]'
     volumes:
       - ./plugins:/usr/local/share/lua/5.1/kong/plugins
     ports:

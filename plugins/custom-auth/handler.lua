@@ -29,6 +29,21 @@ local function validate_config(conf)
   return true
 end
 
+local function should_skip_auth(conf)
+  local path = ngx.var.request_uri
+  ngx.log(ngx.DEBUG, "Current path: ", path)
+  ngx.log(ngx.DEBUG, "Excluded paths: ", require("cjson").encode(conf.excluded_paths))
+
+  for _, pattern in ipairs(conf.excluded_paths) do
+    ngx.log(ngx.DEBUG, "Checking pattern: ", pattern)
+    if ngx.re.match(path, pattern, "jo") then
+      ngx.log(ngx.DEBUG, "Skipping auth for excluded path: ", path)
+      return true
+    end
+  end
+  return false
+end
+
 -- In-memory cache
 local CACHE_TTL = 300
 
@@ -206,6 +221,10 @@ function CustomAuth:access(conf)
 
   if not validate_config(conf) then
     return kong.response.exit(500, { message = "Plugin configuration error" })
+  end
+
+  if should_skip_auth(conf) then
+    return
   end
 
   local cookie_header = get_cookie_header()
