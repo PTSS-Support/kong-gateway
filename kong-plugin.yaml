@@ -1,8 +1,0 @@
-apiVersion: configuration.konghq.com/v1
-kind: KongPlugin
-metadata:
-  name: custom-auth-plugin
-  namespace: hotel-dev
-config:
-  auth_url: "https://authentication-service-dev.apps.inholland.hcs-lab.nl/"
-plugin: custom-auth
