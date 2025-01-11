@@ -95,6 +95,16 @@ spec:
               value: "2"
             - name: KONG_NGINX_HTTP_LUA_SHARED_DICT
               value: "tokens 10m"
+            - name: ACCESS_TOKEN_COOKIE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: ACCESS_TOKEN_COOKIE_NAME
+            - name: REFRESH_TOKEN_COOKIE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: REFRESH_TOKEN_COOKIE_NAME
             - name: KONG_EXCLUDED_PATHS
               valueFrom:
                 configMapKeyRef:

@@ -26,6 +26,10 @@ local function validate_config(conf)
     ngx.log(ngx.ERR, "Missing required configuration: auth_url")
     return false
   end
+  if not conf.refresh_token_cookie_name or not conf.access_token_cookie_name then
+    ngx.log(ngx.ERR, "Missing required configuration: refresh token or access token name")
+    return false
+  end
   return true
 end
 
@@ -85,9 +89,9 @@ local function extract_tokens(cookie_header)
   ngx.log(ngx.WARN, "Cookie Header: " .. tostring(cookie_header))
   return {
     access_token = ngx.var.cookie_access_token or
-            extract_cookie_value(cookie_header, "access_token"),
+            extract_cookie_value(cookie_header, conf.access_token_cookie_name),
     refresh_token = ngx.var.cookie_refresh_token or
-            extract_cookie_value(cookie_header, "refresh_token"),
+            extract_cookie_value(cookie_header, conf.refresh_token_cookie_name),
     pin = ngx.var.cookie_pin or
             extract_cookie_value(cookie_header, "pin")
   }
@@ -106,10 +110,10 @@ local function handle_new_tokens(res)
   end
 
   local new_access_token = set_cookie and
-          extract_cookie_value(set_cookie, "access_token")
+          extract_cookie_value(set_cookie, conf.access_token_cookie_name)
 
   local new_refresh_token = set_cookie and
-          extract_cookie_value(set_cookie, "refresh_token")
+          extract_cookie_value(set_cookie, conf.refresh_token_cookie_name)
 
   if not new_access_token then
     return nil, "Failed to generate new access token"
@@ -190,7 +194,7 @@ local function handle_token_validation(conf, tokens)
   -- Handle token refresh if provided
   local token_to_cache = tokens.access_token
   if res.headers["Set-Cookie"] then
-    local new_access_token = extract_cookie_value(res.headers["Set-Cookie"], "access_token")
+    local new_access_token = extract_cookie_value(res.headers["Set-Cookie"], conf.access_token_cookie_name)
     if new_access_token then
       token_to_cache = new_access_token
       kong.response.set_header("Set-Cookie", res.headers["Set-Cookie"])

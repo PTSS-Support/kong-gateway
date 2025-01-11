@@ -23,8 +23,15 @@ return {
                 { auth_url = {
                     type = "string",
                     default = os.getenv("KONG_AUTH_URL") or "http://host.docker.internal:8081"
-                }
-                },
+                }},
+                { access_token_cookie_name = {
+                    type = "string",
+                    default = os.getenv("ACCESS_TOKEN_COOKIE_NAME") or "access_token"
+                }},
+                { refresh_token_cookie_name = {
+                    type = "string",
+                    default = os.getenv("REFRESH_TOKEN_COOKIE_NAME") or "refresh_token"
+                }},
                 { excluded_paths = {
                     type = "array",
                     elements = { type = "string" },
