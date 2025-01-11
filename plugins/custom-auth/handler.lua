@@ -1,7 +1,5 @@
 local http = require "resty.http"
 local cjson = require "cjson"
-local ngx_shared = ngx.shared
-local cache
 
 local CustomAuth = {
   PRIORITY = 1000,
@@ -46,22 +44,6 @@ local function should_skip_auth(conf)
     end
   end
   return false
-end
-
--- In-memory cache
-local CACHE_TTL = 300
-
-local function cache_token(token)
-  local success, err, forcible = cache:set(token, true, CACHE_TTL)
-  if not success then
-    ngx.log(ngx.ERR, "Failed to cache token: ", err)
-  elseif forcible then
-    ngx.log(ngx.WARN, "Forced LRU eviction while caching token")
-  end
-end
-
-local function is_token_cached(token)
-  return cache:get(token) ~= nil
 end
 
 -- HTTP Client Management
@@ -158,8 +140,6 @@ local function handle_pin_validation(conf, tokens)
     return nil, 500, err
   end
 
-  cache_token(new_access_token)
-
   -- Handle multiple Set-Cookie headers
   local set_cookie = res.headers["Set-Cookie"]
   if type(set_cookie) == "table" then
@@ -202,27 +182,12 @@ local function handle_token_validation(conf, tokens)
     end
   end
 
-  cache_token(token_to_cache)
   kong.service.request.set_header("Cookie", conf.access_token_cookie_name .. "=" .. token_to_cache)
   return true
 end
 
--- Core Plugin Functions
-function CustomAuth:init_worker()
-  -- Initialize the shared dictionary reference
-  cache = ngx_shared.tokens
-  if not cache then
-    ngx.log(ngx.ERR, "Failed to initialize shared dictionary 'tokens'")
-  end
-end
-
 function CustomAuth:access(conf)
   ngx.log(ngx.DEBUG, "Starting CustomAuth access function")
-
-  if not cache then
-    ngx.log(ngx.ERR, "Shared dictionary not initialized")
-    return kong.response.exit(500, { message = "Internal server error" })
-  end
 
   if not validate_config(conf) then
     return kong.response.exit(500, { message = "Plugin configuration error" })
@@ -234,13 +199,6 @@ function CustomAuth:access(conf)
 
   local cookie_header = get_cookie_header()
   local tokens = extract_tokens(cookie_header)
-
-  -- Check cache first
-  if tokens.access_token and is_token_cached(tokens.access_token) then
-    ngx.log(ngx.INFO, "Token found in cache, skipping validation")
-    kong.service.request.set_header("Cookie", conf.access_token_cookie_name .. "=" .. tokens.access_token)
-    return
-  end
 
   -- Handle authentication flows
   local success, status, message
