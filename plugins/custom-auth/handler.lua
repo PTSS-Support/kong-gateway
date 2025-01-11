@@ -133,7 +133,8 @@ local function handle_pin_validation(conf, tokens)
     return nil, 401, "Authentication required"
   end
 
-  local cookie_header = string.format("refresh_token=%s; pin=%s",
+  local cookie_header = string.format("%s=%s; pin=%s",
+          conf.refresh_token_cookie_name,
           tostring(tokens.refresh_token),
           tostring(tokens.pin))
 
@@ -170,15 +171,15 @@ local function handle_pin_validation(conf, tokens)
     -- Single cookie case
     kong.response.set_header("Set-Cookie", set_cookie)
   end
-  kong.service.request.set_header("Cookie", "access_token=" .. new_access_token ..
-          "; refresh_token=" .. (new_refresh_token or ""))
+  kong.service.request.set_header("Cookie", conf.access_token_cookie_name .. "=" .. new_access_token ..
+          "; " .. conf.refresh_token_cookie_name .. "=" .. (new_refresh_token or ""))
   return true
 end
 
 local function handle_token_validation(conf, tokens)
   local res = make_auth_request(conf.auth_url .. "/auth/validate", {
     ["Content-Type"] = "application/json",
-    ["Cookie"] = "access_token=" .. tokens.access_token
+    ["Cookie"] = conf.access_token_cookie_name .. "=" .. tokens.access_token
   })
 
   if not res then
@@ -202,7 +203,7 @@ local function handle_token_validation(conf, tokens)
   end
 
   cache_token(token_to_cache)
-  kong.service.request.set_header("Cookie", "access_token=" .. token_to_cache)
+  kong.service.request.set_header("Cookie", conf.access_token_cookie_name .. "=" .. token_to_cache)
   return true
 end
 
@@ -237,7 +238,7 @@ function CustomAuth:access(conf)
   -- Check cache first
   if tokens.access_token and is_token_cached(tokens.access_token) then
     ngx.log(ngx.INFO, "Token found in cache, skipping validation")
-    kong.service.request.set_header("Cookie", "access_token=" .. tokens.access_token)
+    kong.service.request.set_header("Cookie", conf.access_token_cookie_name .. "=" .. tokens.access_token)
     return
   end
 
