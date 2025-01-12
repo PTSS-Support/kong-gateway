@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kong-gateway
+  namespace: hotel-dev
+  labels:
+    app: kong-gateway
+    ingress-class: kong
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kong-gateway
+  template:
+    metadata:
+      labels:
+        app: kong-gateway
+        ingress-class: kong
+    spec:
+      containers:
+        - name: kong
+          image: registry.connect.redhat.com/kong/kong:3.1.1
+          imagePullPolicy: Always
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          ports:
+            - containerPort: 8000
+              name: proxy
+            - containerPort: 8001
+              name: admin
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: 8001
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          volumeMounts:
+            - name: kong-plugins
+              mountPath: /usr/local/share/lua/5.1/kong/plugins/custom-auth
+          env:
+            - name: KONG_DATABASE
+              value: "postgres"
+            - name: KONG_PG_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: POSTGRESQL_DB_HOST
+            - name: KONG_PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: kong-gateway-secrets
+                  key: POSTGRESQL_DB_USERNAME
+            - name: KONG_PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: kong-gateway-secrets
+                  key: POSTGRESQL_DB_PASSWORD
+            - name: KONG_PG_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: env-config
+                  key: POSTGRESQL_DB_NAME
+            - name: KONG_PG_SCHEMA
+              value: "kong_gateway"
+            - name: KONG_PG_SSL
+              value: "on"
+            - name: KONG_PG_SSL_VERIFY
+              value: "on"
+            - name: KONG_PROXY_ACCESS_LOG
+              value: "/dev/stdout"
+            - name: KONG_ADMIN_ACCESS_LOG
+              value: "/dev/stdout"
+            - name: KONG_PROXY_ERROR_LOG
+              value: "/dev/stderr"
+            - name: KONG_ADMIN_ERROR_LOG
+              value: "/dev/stderr"
+            - name: KONG_ADMIN_LISTEN
+              value: "0.0.0.0:8001"
+            - name: KONG_PROXY_LISTEN
+              value: "0.0.0.0:8000"
+            - name: KONG_PLUGINS
+              value: "bundled,custom-auth"
+            - name: KONG_NGINX_WORKER_PROCESSES
+              value: "2"
+            - name: ACCESS_TOKEN_COOKIE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: ACCESS_TOKEN_COOKIE_NAME
+            - name: REFRESH_TOKEN_COOKIE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: REFRESH_TOKEN_COOKIE_NAME
+            - name: KONG_EXCLUDED_PATHS
+              valueFrom:
+                configMapKeyRef:
+                  name: kong-gateway-config
+                  key: EXCLUDED_PATHS
+      volumes:
+        - name: kong-plugins
+          configMap:
+            name: kong-custom-plugins

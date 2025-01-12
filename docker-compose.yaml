@@ -53,6 +53,10 @@ services:
       KONG_ADMIN_LISTEN: 0.0.0.0:8001
       KONG_PROXY_LISTEN: 0.0.0.0:8000
       KONG_PLUGINS: custom-auth
+      KONG_NGINX_LOG_LEVEL: debug
+      ACCESS_TOKEN_COOKIE_NAME: access_token
+      REFRESH_TOKEN_COOKIE_NAME: refresh_token
+      EXCLUDED_PATHS: '["/authentication-service/auth/login","/user-service/forgot-password","/user-service/reset-password"]'
     volumes:
       - ./plugins:/usr/local/share/lua/5.1/kong/plugins
     ports:

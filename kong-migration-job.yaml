@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kong-migrations
+  namespace: hotel-dev
+spec:
+  template:
+    spec:
+      containers:
+        - name: kong-migration
+          image: registry.connect.redhat.com/kong/kong:3.1.1
+          command: [ "/bin/sh", "-c", "kong migrations bootstrap" ]
+          env:
+            - name: KONG_DATABASE
+              value: "postgres"
+            - name: KONG_PG_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: POSTGRESQL_DB_HOST
+            - name: KONG_PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: kong-gateway-secrets
+                  key: POSTGRESQL_DB_USERNAME
+            - name: KONG_PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: kong-gateway-secrets
+                  key: POSTGRESQL_DB_PASSWORD
+            - name: KONG_PG_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: env-config
+                  key: POSTGRESQL_DB_NAME
+            - name: KONG_PG_SCHEMA
+              value: "kong_gateway"
+            - name: KONG_PG_SSL
+              value: "on"
+            - name: KONG_PG_SSL_VERIFY
+              value: "on"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      restartPolicy: OnFailure

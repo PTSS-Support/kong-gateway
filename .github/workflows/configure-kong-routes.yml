@@ -1,0 +1,175 @@
+name: 🛣️ Configure Kong Routes
+
+on:
+  workflow_dispatch:
+    inputs:
+      service_name:
+        description: 'Service name (e.g., tool-service)'
+        required: true
+      namespace:
+        description: 'OpenShift namespace'
+        required: true
+        default: 'hotel-dev'
+      auth_service_url:
+        description: 'Authentication service URL'
+        required: true
+        default: 'https://authentication-service-dev.apps.inholland.hcs-lab.nl/auth/validate'
+
+jobs:
+  configure-routes:
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - name: Install OpenShift CLI
+        run: |
+          curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz
+          tar -xvf openshift-client-linux.tar.gz -C /usr/local/bin
+          chmod +x /usr/local/bin/oc
+
+      - name: Login to OpenShift
+        run: |
+          oc login --token=${{ secrets.OSC_DEV_TOKEN }} --server=${{ secrets.OSC_SERVER }}
+
+      - name: Verify Service Exists in OpenShift
+        run: |
+          if ! oc get service ${{ github.event.inputs.service_name }} -n ${{ github.event.inputs.namespace }} &>/dev/null; then
+            echo "❌ Service ${{ github.event.inputs.service_name }} does not exist in namespace ${{ github.event.inputs.namespace }}"
+            exit 1
+          fi
+          echo "✅ Service exists in OpenShift"
+
+      - name: Setup Port Forward
+        run: |
+          # Start port forwarding in background
+          oc port-forward service/kong-gateway 8001:8001 -n ${{ github.event.inputs.namespace }} &
+          # Store PID for cleanup
+          echo "KONG_PF_PID=$!" >> $GITHUB_ENV
+          # Wait for port-forward to be ready
+          for i in {1..10}; do
+            if curl -s http://localhost:8001 &>/dev/null; then
+              echo "✅ Port forwarding established"
+              break
+            fi
+            if [ $i -eq 10 ]; then
+              echo "❌ Failed to establish port forwarding"
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Check Existing Configuration
+        id: check_config
+        run: |
+          # Function to check if resource exists
+          check_resource() {
+            local url="$1"
+            local response=$(curl -s -w "%{http_code}" "$url")
+            local http_code=${response: -3}
+            if [ "$http_code" == "200" ]; then
+              return 0  # Resource exists
+            fi
+            return 1  # Resource doesn't exist
+          }
+
+          # Check service
+          if check_resource "http://localhost:8001/services/${{ github.event.inputs.service_name }}"; then
+            echo "⚠️ Service already exists in Kong"
+            echo "existing_service=true" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Service does not exist in Kong"
+            echo "existing_service=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Check route
+          if check_resource "http://localhost:8001/routes/${{ github.event.inputs.service_name }}"; then
+            echo "⚠️ Route already exists in Kong"
+            echo "existing_route=true" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Route does not exist in Kong"
+            echo "existing_route=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Configure Kong Routes
+        run: |
+          # Create Service if it doesn't exist
+          if [ "${{ steps.check_config.outputs.existing_service }}" == "false" ]; then
+            echo "Creating service ${{ github.event.inputs.service_name }}..."
+            response=$(curl -s -X POST http://localhost:8001/services \
+              --data "name=${{ github.event.inputs.service_name }}" \
+              --data "url=http://${{ github.event.inputs.service_name }}.${{ github.event.inputs.namespace }}.svc:8080")
+          
+            if echo "$response" | grep -q "error"; then
+              echo "❌ Failed to create service"
+              echo "$response"
+              exit 1
+            fi
+            echo "✅ Service created successfully"
+          fi
+          
+          # Create Route if it doesn't exist
+          if [ "${{ steps.check_config.outputs.existing_route }}" == "false" ]; then
+            echo "Creating route for ${{ github.event.inputs.service_name }}..."
+            response=$(curl -s -X POST http://localhost:8001/services/${{ github.event.inputs.service_name }}/routes \
+              --data "paths[]=/${{ github.event.inputs.service_name }}" \
+              --data "name=${{ github.event.inputs.service_name }}")
+          
+            if echo "$response" | grep -q "error"; then
+              echo "❌ Failed to create route"
+              echo "$response"
+              exit 1
+            fi
+            echo "✅ Route created successfully"
+          fi
+          
+          # Check existing plugins
+          plugins=$(curl -s http://localhost:8001/routes/${{ github.event.inputs.service_name }}/plugins)
+          if echo "$plugins" | grep -q "custom-auth"; then
+            echo "⚠️ custom-auth plugin already exists for this route"
+          else
+            echo "Applying custom-auth plugin..."
+            response=$(curl -s -X POST http://localhost:8001/routes/${{ github.event.inputs.service_name }}/plugins \
+              --data "name=custom-auth" \
+              --data "config.auth_url=${{ github.event.inputs.auth_service_url }}")
+          
+            if echo "$response" | grep -q "error"; then
+              echo "❌ Failed to apply plugin"
+              echo "$response"
+              exit 1
+            fi
+            echo "✅ Plugin applied successfully"
+          fi
+
+      - name: Verify Final Configuration
+        run: |
+          echo "Verifying final configuration..."
+          
+          # Check service
+          service_response=$(curl -s http://localhost:8001/services/${{ github.event.inputs.service_name }})
+          if ! echo "$service_response" | grep -q "name"; then
+            echo "❌ Service verification failed"
+            exit 1
+          fi
+          echo "✅ Service configured correctly"
+          
+          # Check route
+          route_response=$(curl -s http://localhost:8001/routes/${{ github.event.inputs.service_name }})
+          if ! echo "$route_response" | grep -q "paths"; then
+            echo "❌ Route verification failed"
+            exit 1
+          fi
+          echo "✅ Route configured correctly"
+          
+          # Check plugin
+          plugin_response=$(curl -s http://localhost:8001/routes/${{ github.event.inputs.service_name }}/plugins)
+          if ! echo "$plugin_response" | grep -q "custom-auth"; then
+            echo "❌ Plugin verification failed"
+            exit 1
+          fi
+          echo "✅ Plugin configured correctly"
+
+      - name: Cleanup Port Forward
+        if: always()
+        run: |
+          if [ ! -z "${{ env.KONG_PF_PID }}" ]; then
+            kill ${{ env.KONG_PF_PID }} || true
+          fi
