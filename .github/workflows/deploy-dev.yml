@@ -78,8 +78,8 @@ jobs:
         run: |
           # Create ConfigMap for Lua files
           oc create configmap kong-custom-plugins \
-            --from-file=custom-auth/handler.lua=plugins/custom-auth/handler.lua \
-            --from-file=custom-auth/schema.lua=plugins/custom-auth/schema.lua \
+            --from-file=custom-auth.handler=plugins/custom-auth/handler.lua \
+            --from-file=custom-auth.schema=plugins/custom-auth/schema.lua \
             -n ${{ vars.OSC_DEV_PROJECT }} \
             --dry-run=client -o yaml | oc apply -f -
 
