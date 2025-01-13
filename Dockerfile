@@ -1,4 +1,4 @@
-FROM registry.connect.redhat.com/kong/kong:3.1.1
+FROM kong/kong:3.1.1
 
 # Create directory for custom plugins
 USER root
