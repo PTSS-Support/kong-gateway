@@ -1,0 +1,79 @@
+name: 🗑️ Delete Kong Route
+
+on:
+  workflow_dispatch:
+    inputs:
+      service_name:
+        description: 'Service name to delete (e.g., agenda-service)'
+        required: true
+      namespace:
+        description: 'OpenShift namespace'
+        required: true
+        default: 'hotel-dev'
+
+jobs:
+  delete-route:
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - name: Install OpenShift CLI
+        run: |
+          curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz
+          tar -xvf openshift-client-linux.tar.gz -C /usr/local/bin
+          chmod +x /usr/local/bin/oc
+
+      - name: Login to OpenShift
+        run: |
+          oc login --token=${{ secrets.OSC_DEV_TOKEN }} --server=${{ secrets.OSC_SERVER }}
+
+      - name: Setup Port Forward
+        run: |
+          oc port-forward service/kong-gateway 8001:8001 -n ${{ github.event.inputs.namespace }} &
+          echo "KONG_PF_PID=$!" >> $GITHUB_ENV
+          # Wait for port-forward
+          for i in {1..10}; do
+            if curl -s http://localhost:8001 &>/dev/null; then
+              echo "✅ Port forwarding established"
+              break
+            fi
+            if [ $i -eq 10 ]; then
+              echo "❌ Failed to establish port forwarding"
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Delete Kong Configuration
+        run: |
+          # Delete route first (if exists)
+          echo "Attempting to delete route..."
+          curl -s -X DELETE http://localhost:8001/routes/${{ github.event.inputs.service_name }}
+          echo "✅ Route deleted or didn't exist"
+          
+          # Delete service (if exists)
+          echo "Attempting to delete service..."
+          curl -s -X DELETE http://localhost:8001/services/${{ github.event.inputs.service_name }}
+          echo "✅ Service deleted or didn't exist"
+
+      - name: Verify Deletion
+        run: |
+          # Verify route is gone
+          if curl -s http://localhost:8001/routes/${{ github.event.inputs.service_name }} | grep -q "name"; then
+            echo "❌ Route still exists"
+            exit 1
+          fi
+          echo "✅ Route verified deleted"
+          
+          # Verify service is gone
+          if curl -s http://localhost:8001/services/${{ github.event.inputs.service_name }} | grep -q "name"; then
+            echo "❌ Service still exists"
+            exit 1
+          fi
+          echo "✅ Service verified deleted"
+
+      - name: Cleanup Port Forward
+        if: always()
+        run: |
+          if [ ! -z "${{ env.KONG_PF_PID }}" ]; then
+            kill ${{ env.KONG_PF_PID }} || true
+          fi
