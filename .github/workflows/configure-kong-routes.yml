@@ -110,9 +110,9 @@ jobs:
           if [ "${{ steps.check_config.outputs.existing_route }}" == "false" ]; then
             echo "Creating route for ${{ github.event.inputs.service_name }}..."
             response=$(curl -s -X POST http://localhost:8001/services/${{ github.event.inputs.service_name }}/routes \
-              --data "paths[]=/${{ github.event.inputs.service_name }}" \
-              --data "name=${{ github.event.inputs.service_name \
-              --data "strip_path=true"}}")
+            --data "paths[]=/${{ github.event.inputs.service_name }}" \
+            --data "name=${{ github.event.inputs.service_name }}" \
+            --data "strip_path=true")
           
             if echo "$response" | grep -q "error"; then
               echo "❌ Failed to create route"
