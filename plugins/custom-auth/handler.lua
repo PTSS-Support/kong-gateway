@@ -68,7 +68,7 @@ end
 
 -- Token Management
 local function extract_tokens(cookie_header)
-  ngx.log(ngx.WARN, "Cookie Header: " .. tostring(cookie_header))
+  ngx.log(ngx.DEBUG, "Cookie Header: " .. tostring(cookie_header))
   return {
     access_token = ngx.var.cookie_access_token or
             extract_cookie_value(cookie_header, conf.access_token_cookie_name),
@@ -84,9 +84,9 @@ local function handle_new_tokens(res)
 
   -- If set_cookie is a table, take the first cookie
   if type(set_cookie) == "table" then
-    ngx.log(ngx.WARN, "Multiple Set-Cookie headers found:")
+    ngx.log(ngx.DEBUG, "Multiple Set-Cookie headers found:")
     for i, cookie in ipairs(set_cookie) do
-      ngx.log(ngx.WARN, "Cookie " .. i .. ": " .. tostring(cookie))
+      ngx.log(ngx.DEBUG, "Cookie " .. i .. ": " .. tostring(cookie))
     end
     set_cookie = table.concat(set_cookie, "; ")
   end
