@@ -15,6 +15,9 @@ end
 local function get_cookie_header()
   local headers = ngx.req.get_headers()
   local cookie = headers["cookie"] or headers["Cookie"]
+  if type(cookie) == "table" then
+    cookie = table.concat(cookie, "; ")
+  end
   ngx.log(ngx.WARN, "Full Cookie Header: " .. tostring(cookie))
   return cookie
 end
@@ -145,10 +148,12 @@ local function handle_pin_validation(conf, tokens)
   if type(set_cookie) == "table" then
     -- Set each cookie as a separate header
     for _, cookie in ipairs(set_cookie) do
+      cookie = cookie .. "; SameSite=None; Secure"
       kong.response.add_header("Set-Cookie", cookie)
     end
   else
     -- Single cookie case
+    set_cookie = set_cookie .. "; SameSite=None; Secure"
     kong.response.set_header("Set-Cookie", set_cookie)
   end
   kong.service.request.set_header("Cookie", conf.access_token_cookie_name .. "=" .. new_access_token ..
@@ -177,8 +182,8 @@ local function handle_token_validation(conf, tokens)
   if res.headers["Set-Cookie"] then
     local new_access_token = extract_cookie_value(res.headers["Set-Cookie"], conf.access_token_cookie_name)
     if new_access_token then
-      token_to_cache = new_access_token
-      kong.response.set_header("Set-Cookie", res.headers["Set-Cookie"])
+      token = res.headers["Set-Cookie"]  .. "; SameSite=None; Secure"
+      kong.response.set_header("Set-Cookie", token)
     end
   end
 
