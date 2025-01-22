@@ -112,19 +112,45 @@ jobs:
           
       - name: Configure CORS Plugin
         run: |
-          # Get Kong's service URL
-          KONG_ADMIN_URL="http://kong-gateway.${OSC_DEV_PROJECT}:8001"
-          
-          # Find the route ID for our service
           echo "Configuring CORS for Kong routes..."
           
           # Enable CORS plugin through Kong's admin API
           oc exec -n ${{ vars.OSC_DEV_PROJECT }} deploy/kong-gateway -- \
             curl -X POST http://localhost:8001/plugins/ \
             --data "name=cors" \
-            --data "config.origins=http://localhost:5173" \
-            --data "config.methods=GET,POST,PUT,DELETE,OPTIONS,PATCH" \
-            --data "config.headers=Content-Type,Authorization,X-Requested-With" \
+            --data "config.origins[]=http://localhost:5173" \
+            --data "config.methods[]=GET" \
+            --data "config.methods[]=POST" \
+            --data "config.methods[]=PUT" \
+            --data "config.methods[]=DELETE" \
+            --data "config.methods[]=OPTIONS" \
+            --data "config.methods[]=PATCH" \
+            --data "config.headers[]=Content-Type" \
+            --data "config.headers[]=Authorization" \
+            --data "config.headers[]=X-Requested-With" \
+            --data "config.max_age=3600" \
+            --data "config.credentials=true"
+          
+          echo "✅ CORS plugin configured successfully"
+          
+      - name: Configure CORS Plugin
+        run: |
+          echo "Configuring CORS for Kong routes..."
+          
+          # Enable CORS plugin through Kong's admin API
+          oc exec -n ${{ vars.OSC_DEV_PROJECT }} deploy/kong-gateway -- \
+            curl -X POST http://localhost:8001/plugins/ \
+            --data "name=cors" \
+            --data "config.origins[]=http://localhost:5173" \
+            --data "config.methods[]=GET" \
+            --data "config.methods[]=POST" \
+            --data "config.methods[]=PUT" \
+            --data "config.methods[]=DELETE" \
+            --data "config.methods[]=OPTIONS" \
+            --data "config.methods[]=PATCH" \
+            --data "config.headers[]=Content-Type" \
+            --data "config.headers[]=Authorization" \
+            --data "config.headers[]=X-Requested-With" \
             --data "config.max_age=3600" \
             --data "config.credentials=true"
           
