@@ -90,7 +90,7 @@ spec:
             - name: KONG_PROXY_LISTEN
               value: "0.0.0.0:8000"
             - name: KONG_PLUGINS
-              value: "bundled,custom-auth"
+              value: "bundled,custom-auth,cors"
             - name: KONG_NGINX_WORKER_PROCESSES
               value: "2"
             - name: ACCESS_TOKEN_COOKIE_NAME
@@ -108,6 +108,31 @@ spec:
                 configMapKeyRef:
                   name: kong-gateway-config
                   key: EXCLUDED_PATHS
+            - name: KONG_CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: kong-cors-config
+                  key: cors_origins
+            - name: KONG_CORS_METHODS
+              valueFrom:
+                configMapKeyRef:
+                  name: kong-cors-config
+                  key: cors_methods
+            - name: KONG_CORS_HEADERS
+              valueFrom:
+                configMapKeyRef:
+                  name: kong-cors-config
+                  key: cors_headers
+            - name: KONG_CORS_MAX_AGE
+              valueFrom:
+                configMapKeyRef:
+                  name: kong-cors-config
+                  key: cors_max_age
+            - name: KONG_CORS_CREDENTIALS
+              valueFrom:
+                configMapKeyRef:
+                  name: kong-cors-config
+                  key: cors_credentials
       volumes:
         - name: kong-plugins
           configMap:
