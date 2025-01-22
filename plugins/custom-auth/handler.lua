@@ -15,6 +15,9 @@ end
 local function get_cookie_header()
   local headers = ngx.req.get_headers()
   local cookie = headers["cookie"] or headers["Cookie"]
+  if type(cookie) == "table" then
+    cookie = table.concat(cookie, "; ")
+  end
   ngx.log(ngx.WARN, "Full Cookie Header: " .. tostring(cookie))
   return cookie
 end
