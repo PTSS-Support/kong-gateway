@@ -24,10 +24,10 @@ spec:
           resources:
             requests:
               memory: "128Mi"
-              cpu: "80m"
+              cpu: "30m"
             limits:
               memory: "256Mi"
-              cpu: "150m"
+              cpu: "100m"
           ports:
             - containerPort: 8000
               name: proxy
