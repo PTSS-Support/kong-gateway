@@ -68,19 +68,14 @@ end
 
 -- Token Management
 local function extract_tokens(cookie_header, conf)
-  local cookie_str = type(cookie_header) == "table"
-          and table.concat(cookie_header, "; ")
-          or cookie_header
-
-  ngx.log(ngx.DEBUG, "Cookie Header: " .. tostring(cookie_str))
-
+  ngx.log(ngx.DEBUG, "Cookie Header: " .. tostring(cookie_header))
   return {
     access_token = ngx.var.cookie_access_token or
-            extract_cookie_value(cookie_str, conf.access_token_cookie_name),
+            extract_cookie_value(cookie_header, conf.access_token_cookie_name),
     refresh_token = ngx.var.cookie_refresh_token or
-            extract_cookie_value(cookie_str, conf.refresh_token_cookie_name),
+            extract_cookie_value(cookie_header, conf.refresh_token_cookie_name),
     pin = ngx.var.cookie_pin or
-            extract_cookie_value(cookie_str, "pin")
+            extract_cookie_value(cookie_header, "pin")
   }
 end
 
