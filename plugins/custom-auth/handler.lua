@@ -15,9 +15,6 @@ end
 local function get_cookie_header()
   local headers = ngx.req.get_headers()
   local cookie = headers["cookie"] or headers["Cookie"]
-  if type(cookie) == "table" then
-    cookie = table.concat(cookie, "; ")
-  end
   ngx.log(ngx.WARN, "Full Cookie Header: " .. tostring(cookie))
   return cookie
 end
@@ -36,13 +33,13 @@ end
 
 local function should_skip_auth(conf)
   local path = ngx.var.request_uri
-  ngx.log(ngx.WARN, "Current path: ", path)
-  ngx.log(ngx.WARN, "Excluded paths: ", require("cjson").encode(conf.excluded_paths))
+  ngx.log(ngx.DEBUG, "Current path: ", path)
+  ngx.log(ngx.DEBUG, "Excluded paths: ", require("cjson").encode(conf.excluded_paths))
 
   for _, pattern in ipairs(conf.excluded_paths) do
-    ngx.log(ngx.WARN, "Checking pattern: ", pattern)
+    ngx.log(ngx.DEBUG, "Checking pattern: ", pattern)
     if ngx.re.match(path, pattern, "jo") then
-      ngx.log(ngx.WARN, "Skipping auth for excluded path: ", path)
+      ngx.log(ngx.DEBUG, "Skipping auth for excluded path: ", path)
       return true
     end
   end
@@ -64,14 +61,14 @@ local function make_auth_request(url, headers)
     ngx.log(ngx.ERR, "URL attempted: ", url)
     return nil, "Internal server error"
   end
-  ngx.log(ngx.WARN, "Auth service response status: ", res.status)
+  ngx.log(ngx.DEBUG, "Auth service response status: ", res.status)
 
   return res
 end
 
 -- Token Management
 local function extract_tokens(cookie_header, conf)
-  ngx.log(ngx.WARN, "Cookie Header: " .. tostring(cookie_header))
+  ngx.log(ngx.DEBUG, "Cookie Header: " .. tostring(cookie_header))
   return {
     access_token = ngx.var.cookie_access_token or
             extract_cookie_value(cookie_header, conf.access_token_cookie_name),
@@ -87,9 +84,9 @@ local function handle_new_tokens(res)
 
   -- If set_cookie is a table, take the first cookie
   if type(set_cookie) == "table" then
-    ngx.log(ngx.WARN, "Multiple Set-Cookie headers found:")
+    ngx.log(ngx.DEBUG, "Multiple Set-Cookie headers found:")
     for i, cookie in ipairs(set_cookie) do
-      ngx.log(ngx.WARN, "Cookie " .. i .. ": " .. tostring(cookie))
+      ngx.log(ngx.DEBUG, "Cookie " .. i .. ": " .. tostring(cookie))
     end
     set_cookie = table.concat(set_cookie, "; ")
   end
@@ -160,7 +157,6 @@ local function handle_pin_validation(conf, tokens)
 end
 
 local function handle_token_validation(conf, tokens)
-  ngx.log(ngx.WARN, "Access token being validated: ", tokens.access_token)
   local res = make_auth_request(conf.auth_url .. "/auth/validate", {
     ["Content-Type"] = "application/json",
     ["Cookie"] = conf.access_token_cookie_name .. "=" .. tokens.access_token
@@ -191,7 +187,7 @@ local function handle_token_validation(conf, tokens)
 end
 
 function CustomAuth:access(conf)
-  ngx.log(ngx.WARN, "Starting CustomAuth access function")
+  ngx.log(ngx.DEBUG, "Starting CustomAuth access function")
 
   if not validate_config(conf) then
     return kong.response.exit(500, { message = "Plugin configuration error" })
