@@ -133,6 +133,8 @@ spec:
                 configMapKeyRef:
                   name: kong-cors-config
                   key: cors_credentials
+            - name: KONG_LOG_LEVEL
+              value: "debug"
       volumes:
         - name: kong-plugins
           configMap:
