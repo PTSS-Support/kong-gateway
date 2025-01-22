@@ -33,13 +33,13 @@ end
 
 local function should_skip_auth(conf)
   local path = ngx.var.request_uri
-  ngx.log(ngx.ERR, "Current path: ", path)
-  ngx.log(ngx.ERR, "Excluded paths: ", require("cjson").encode(conf.excluded_paths))
+  ngx.log(ngx.DEBUG, "Current path: ", path)
+  ngx.log(ngx.DEBUG, "Excluded paths: ", require("cjson").encode(conf.excluded_paths))
 
   for _, pattern in ipairs(conf.excluded_paths) do
-    ngx.log(ngx.ERR, "Checking pattern: ", pattern)
+    ngx.log(ngx.DEBUG, "Checking pattern: ", pattern)
     if ngx.re.match(path, pattern, "jo") then
-      ngx.log(ngx.ERR, "Skipping auth for excluded path: ", path)
+      ngx.log(ngx.DEBUG, "Skipping auth for excluded path: ", path)
       return true
     end
   end
