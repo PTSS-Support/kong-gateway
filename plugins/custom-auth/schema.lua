@@ -2,7 +2,7 @@ local typedefs = require "kong.db.schema.typedefs"
 local cjson = require "cjson"
 
 -- Get environment variables and parse JSON
-local excluded_paths = os.getenv("EXCLUDED_PATHS")
+local excluded_paths = os.getenv("KONG_EXCLUDED_PATHS")
 local default_excluded_paths = {}
 
 if excluded_paths then

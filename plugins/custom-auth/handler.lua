@@ -33,13 +33,13 @@ end
 
 local function should_skip_auth(conf)
   local path = ngx.var.request_uri
-  ngx.log(ngx.DEBUG, "Current path: ", path)
-  ngx.log(ngx.DEBUG, "Excluded paths: ", require("cjson").encode(conf.excluded_paths))
+  ngx.log(ngx.ERR, "Current path: ", path)
+  ngx.log(ngx.ERR, "Excluded paths: ", require("cjson").encode(conf.excluded_paths))
 
   for _, pattern in ipairs(conf.excluded_paths) do
-    ngx.log(ngx.DEBUG, "Checking pattern: ", pattern)
+    ngx.log(ngx.ERR, "Checking pattern: ", pattern)
     if ngx.re.match(path, pattern, "jo") then
-      ngx.log(ngx.DEBUG, "Skipping auth for excluded path: ", path)
+      ngx.log(ngx.ERR, "Skipping auth for excluded path: ", path)
       return true
     end
   end
@@ -67,7 +67,7 @@ local function make_auth_request(url, headers)
 end
 
 -- Token Management
-local function extract_tokens(cookie_header)
+local function extract_tokens(cookie_header, conf)
   ngx.log(ngx.DEBUG, "Cookie Header: " .. tostring(cookie_header))
   return {
     access_token = ngx.var.cookie_access_token or
@@ -198,7 +198,7 @@ function CustomAuth:access(conf)
   end
 
   local cookie_header = get_cookie_header()
-  local tokens = extract_tokens(cookie_header)
+  local tokens = extract_tokens(cookie_header, conf)
 
   -- Handle authentication flows
   local success, status, message
