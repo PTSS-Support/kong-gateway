@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kong-cors-config
+  namespace: hotel-dev
+data:
+  cors_origins: "http://localhost:5173"
+  cors_methods: "GET,POST,PUT,DELETE,OPTIONS,PATCH"
+  cors_headers: "Content-Type,Authorization,X-Requested-With"
+  cors_max_age: "3600"
+  cors_credentials: "true"
